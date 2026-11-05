@@ -37,7 +37,7 @@ pipeline {
                 script {
                     sh '''
                         echo "Waiting for services to become healthy..."
-                        for svc_url in "http://localhost:8080/health" "http://localhost:5001/health" "http://localhost:5002/health"; do
+                        for svc_url in "http://localhost:3000/health" "http://localhost:5001/health" "http://localhost:5002/health"; do
                             for i in $(seq 1 10); do
                                 STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$svc_url" || echo "000")
                                 if [ "$STATUS" = "200" ]; then
