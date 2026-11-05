@@ -57,7 +57,7 @@ pipeline {
             echo 'All 3 services built, deployed, and passed the test.'
         }
         failure {
-            echo 'Something failed — check which stage above.'
+            echo 'failed failed — check which stage above.'
         }
     }
 }
