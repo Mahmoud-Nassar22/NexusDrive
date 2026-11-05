@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1000" viewBox="0 0 1400 1000">
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+    <path d="M0,0 L0,6 L9,3 z" fill="#526780"/>
+  </marker>
+  <style>
+    text {font-family:Arial,sans-serif;fill:#20334d;text-anchor:middle}
+    .title {font-size:30px;font-weight:bold}
+    .heading {font-size:20px;font-weight:bold}
+    .label {font-size:17px;font-weight:bold}
+    .small {font-size:14px}
+    .tiny {font-size:13px}
+    .box {fill:#eaf3ff;stroke:#3980cf;stroke-width:2;rx:12}
+    .missing {fill:#fff4df;stroke:#dc931c;stroke-width:2;stroke-dasharray:7 5;rx:12}
+    .storage {fill:#e9f7ef;stroke:#399268;stroke-width:2;rx:12}
+    .secret {fill:#f1eaff;stroke:#9067c6;stroke-width:2;rx:12}
+    .line {fill:none;stroke:#526780;stroke-width:2;marker-end:url(#arrow)}
+    .dashed {stroke-dasharray:6 5}
+  </style>
+</defs>
+
+<rect width="1400" height="1000" fill="#f7f9fc"/>
+<text x="700" y="45" class="title">SimpleCloud — Project &amp; Kubernetes Architecture</text>
+<text x="700" y="73" class="small">NexusDrive / feature/bahaa/simple-nextcloud • Based on supplied repository files</text>
+
+<!-- Delivery -->
+<rect x="30" y="95" width="1340" height="150" rx="18" fill="#fff" stroke="#ccd7e4"/>
+<text x="700" y="123" class="heading">DevOps Delivery</text>
+
+<rect x="50" y="145" width="180" height="75" class="box"/>
+<text x="140" y="174" class="label">Git Repository</text>
+<text x="140" y="198" class="small">Three service Dockerfiles</text>
+
+<rect x="270" y="145" width="215" height="75" class="box"/>
+<text x="377" y="174" class="label">Jenkins CI</text>
+<text x="377" y="198" class="small">Checkout • Validate • Build</text>
+
+<rect x="525" y="145" width="245" height="75" class="box"/>
+<text x="647" y="174" class="label">Docker Compose</text>
+<text x="647" y="198" class="small">Deploy • Health checks • Smoke test</text>
+
+<rect x="810" y="145" width="210" height="75" class="box"/>
+<text x="915" y="174" class="label">Docker Hub</text>
+<text x="915" y="198" class="small">Optional push: BUILD_NUMBER</text>
+
+<rect x="1060" y="145" width="285" height="75" class="missing"/>
+<text x="1202" y="172" class="label">Kubernetes Delivery</text>
+<text x="1202" y="195" class="small">Missing: image updates + deployment</text>
+
+<path d="M230 182 H270" class="line"/>
+<path d="M485 182 H525" class="line"/>
+<path d="M770 182 H810" class="line"/>
+<path d="M1020 182 H1060" class="line dashed"/>
+
+<!-- Cluster -->
+<rect x="30" y="275" width="1340" height="540" rx="18" fill="#fff" stroke="#3980cf" stroke-width="2"/>
+<text x="200" y="307" class="heading">Kubernetes Cluster</text>
+
+<rect x="65" y="335" width="190" height="65" class="box"/>
+<text x="160" y="363" class="label">User / Browser</text>
+<text x="160" y="384" class="small">HTTP request</text>
+
+<rect x="295" y="335" width="255" height="65" class="missing"/>
+<text x="422" y="362" class="label">Ingress Controller</text>
+<text x="422" y="383" class="small">Install separately • nginx class</text>
+
+<rect x="590" y="335" width="310" height="65" class="box"/>
+<text x="745" y="362" class="label">simplecloud-ingress</text>
+<text x="745" y="383" class="small">simplecloud.local / • No TLS configured</text>
+
+<path d="M255 368 H295" class="line"/>
+<path d="M550 368 H590" class="line"/>
+
+<!-- Frontend -->
+<rect x="65" y="435" width="345" height="245" rx="16" fill="#f6faff" stroke="#d4e2f2"/>
+<text x="237" y="466" class="heading">Frontend</text>
+<rect x="85" y="483" width="305" height="60" class="box"/>
+<text x="237" y="508" class="label">Service: frontend</text>
+<text x="237" y="530" class="small">ClusterIP • Port 80 → 5000</text>
+<rect x="85" y="568" width="305" height="90" class="box"/>
+<text x="237" y="594" class="label">Deployment • 2 Pods</text>
+<text x="237" y="618" class="small">Flask UI • Port 5000</text>
+<text x="237" y="641" class="small">Login / Register / Upload / Download</text>
+<path d="M237 543 V568" class="line"/>
+<path d="M745 400 V418 H237 V483" class="line"/>
+
+<!-- Auth -->
+<rect x="485" y="435" width="350" height="245" rx="16" fill="#f6faff" stroke="#d4e2f2"/>
+<text x="660" y="466" class="heading">Authentication</text>
+<rect x="505" y="483" width="310" height="60" class="missing"/>
+<text x="660" y="508" class="label">Missing Service: auth-service</text>
+<text x="660" y="530" class="small">Expected internal port: 5001</text>
+<rect x="505" y="568" width="310" height="90" class="box"/>
+<text x="660" y="594" class="label">Deployment • 1 Pod</text>
+<text x="660" y="618" class="small">Flask API • Port 5001</text>
+<text x="660" y="641" class="small">Register / Login / Verify • 4-hour JWT</text>
+<path d="M660 543 V568" class="line"/>
+
+<!-- Files -->
+<rect x="910" y="435" width="390" height="245" rx="16" fill="#f6faff" stroke="#d4e2f2"/>
+<text x="1105" y="466" class="heading">File Storage</text>
+<rect x="930" y="483" width="350" height="60" class="missing"/>
+<text x="1105" y="508" class="label">Missing Service: file-service</text>
+<text x="1105" y="530" class="small">Expected internal port: 5002</text>
+<rect x="930" y="568" width="350" height="90" class="box"/>
+<text x="1105" y="594" class="label">Deployment • 2 Pods</text>
+<text x="1105" y="618" class="small">Flask API • Port 5002</text>
+<text x="1105" y="641" class="small">Upload / List / Download</text>
+<path d="M1105 543 V568" class="line"/>
+
+<!-- Service calls -->
+<path d="M390 587 H505" class="line"/>
+<text x="447" y="577" class="tiny">Login</text>
+<path d="M390 650 V697 H1105 V658" class="line"/>
+<text x="675" y="691" class="small">Frontend → file-service: Bearer JWT + file requests</text>
+<path d="M930 614 H815" class="line"/>
+<text x="872" y="604" class="tiny">Verify JWT</text>
+
+<!-- Config and volumes -->
+<rect x="85" y="724" width="305" height="65" class="secret"/>
+<text x="237" y="750" class="label">simplecloud-secrets</text>
+<text x="237" y="774" class="small">envFrom → frontend + auth</text>
+
+<rect x="505" y="724" width="310" height="65" class="storage"/>
+<text x="660" y="750" class="label">auth-data-pvc • 1 Gi • RWO</text>
+<text x="660" y="774" class="small">SQLite: /data/auth.db</text>
+
+<!-- Explicit filesystem file store -->
+<path d="M930 738
+         C930 720 1280 720 1280 738
+         L1280 779
+         C1280 797 930 797 930 779 Z"
+      fill="#e9f7ef" stroke="#399268" stroke-width="2"/>
+<ellipse cx="1105" cy="738" rx="175" ry="12"
+         fill="#d4eddf" stroke="#399268" stroke-width="2"/>
+<text x="1105" y="761" class="label">Uploaded File Store • Filesystem</text>
+<text x="1105" y="779" class="tiny">/data/files/&lt;username&gt;/&lt;filename&gt;</text>
+<text x="1105" y="808" class="tiny">Persistence: file-data-pvc • 5 Gi • ReadWriteOnce</text>
+
+<path d="M660 658 V724" class="line dashed"/>
+<path d="M1170 658 V724" class="line dashed"/>
+<text x="1238" y="716" class="tiny">File reads / writes</text>
+
+<!-- Feature and caveat panels -->
+<rect x="30" y="840" width="640" height="110" class="box"/>
+<text x="350" y="870" class="heading">Kubernetes Features Defined</text>
+<text x="350" y="897" class="small">3 Deployments • 5 desired Pods • 2 PVCs • Secret injection</text>
+<text x="350" y="922" class="small">Readiness + liveness: /health • Frontend Service + Ingress</text>
+
+<rect x="695" y="840" width="675" height="110" class="missing"/>
+<text x="1032" y="870" class="heading">Required Fixes / Deployment Caveats</text>
+<text x="1032" y="896" class="small">Missing backend Services + both PVC claimName values</text>
+<text x="1032" y="919" class="small">File RWO storage is not multi-node shared-write storage</text>
+<text x="1032" y="940" class="tiny">Provision storage • Replace image/secret placeholders • Fix Jenkins tests</text>
+
+<text x="700" y="978" class="small">Blue: defined components  |  Orange dashed: missing / requires attention  |  Green: storage  |  Purple: secrets</text>
+</svg>
