@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    restart: unless-stopped
+    environment:
+      - AUTH_DB_PATH=/data/auth.db
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - auth_data:/data
+    networks:
+      - simplecloud_net
+
+  file-service:
+    build: ./file-service
+    container_name: file-service
+    restart: unless-stopped
+    environment:
+      - STORAGE_DIR=/data/files
+      - AUTH_SERVICE_URL=http://auth-service:5001
+    volumes:
+      - file_data:/data/files
+    depends_on:
+      - auth-service
+    networks:
+      - simplecloud_net
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "3000:5000"
+    environment:
+      - FRONTEND_SECRET=${FRONTEND_SECRET}
+      - AUTH_SERVICE_URL=http://auth-service:5001
+      - FILE_SERVICE_URL=http://file-service:5002
+    depends_on:
+      - auth-service
+      - file-service
+    networks:
+      - simplecloud_net
+
+volumes:
+  auth_data:
+  file_data:
+
+networks:
+  simplecloud_net:
+    driver: bridge

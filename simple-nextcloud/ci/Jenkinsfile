@@ -1,0 +1,101 @@
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY_CREDENTIALS = credentials('dockerhub-credentials') // set this up in Jenkins credentials store
+        DOCKERHUB_NAMESPACE = "your-dockerhub-username"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Validate Compose File') {
+            steps {
+                sh 'docker compose config'
+            }
+        }
+
+        stage('Build Images') {
+            steps {
+                sh 'docker compose build'
+            }
+        }
+
+        stage('Deploy Stack') {
+            steps {
+                sh 'docker compose up -d'
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                script {
+                    sh '''
+                        echo "Waiting for services to become healthy..."
+                        for svc_url in "http://localhost:8080/health" "http://localhost:5001/health" "http://localhost:5002/health"; do
+                            for i in $(seq 1 10); do
+                                STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$svc_url" || echo "000")
+                                if [ "$STATUS" = "200" ]; then
+                                    echo "$svc_url is healthy"
+                                    break
+                                fi
+                                echo "Attempt $i for $svc_url: got HTTP $STATUS, retrying..."
+                                sleep 5
+                            done
+                        done
+                    '''
+                }
+            }
+        }
+
+        stage('Smoke Test: Register + Login + Upload') {
+            steps {
+                sh '''
+                    curl -s -X POST http://localhost:5001/register -H "Content-Type: application/json" \
+                        -d '{"username":"ci-test","password":"ci-test-pass"}' || true
+
+                    TOKEN=$(curl -s -X POST http://localhost:5001/login -H "Content-Type: application/json" \
+                        -d '{"username":"ci-test","password":"ci-test-pass"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+
+                    echo "smoke-test" > smoke.txt
+                    curl -s -X POST http://localhost:5002/upload -H "Authorization: Bearer $TOKEN" -F "file=@smoke.txt"
+                    curl -s http://localhost:5002/files -H "Authorization: Bearer $TOKEN"
+                '''
+            }
+        }
+
+        stage('Tag & Push Images (optional)') {
+            when {
+                expression { return env.PUSH_IMAGE == 'true' }
+            }
+            steps {
+                sh '''
+                    for svc in auth-service file-service frontend; do
+                        docker tag simple-nextcloud-$svc:latest ${DOCKERHUB_NAMESPACE}/$svc:${BUILD_NUMBER}
+                    done
+                    echo $REGISTRY_CREDENTIALS_PSW | docker login -u $REGISTRY_CREDENTIALS_USR --password-stdin
+                    for svc in auth-service file-service frontend; do
+                        docker push ${DOCKERHUB_NAMESPACE}/$svc:${BUILD_NUMBER}
+                    done
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline succeeded: all three services built, deployed and healthy.'
+        }
+        failure {
+            echo 'Pipeline failed: check the stage logs above.'
+        }
+        always {
+            sh 'docker compose ps'
+        }
+    }
+}

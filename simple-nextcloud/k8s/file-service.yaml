@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: file-data-pvc
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: file-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: file-service
+  template:
+    metadata:
+      labels:
+        app: file-service
+    spec:
+      containers:
+        - name: file-service
+          image: your-dockerhub-username/file-service:latest
+          ports:
+            - containerPort: 5002
+          env:
+            - name: STORAGE_DIR
+              value: "/data/files"
+            - name: AUTH_SERVICE_URL
+              value: "http://auth-service:5001"
+          volumeMounts:
+            - name: file-storage
+              mountPath: /data/files
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5002
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5002
+            initialDelaySeconds: 10
+      volumes:
+        - name: file-storage
+          persistentVolumeClaim:
+            claimName: file-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: file-service
+spec:
+  selector:
+    app: file-service
+  ports:
+    - port: 5002
+      targetPort: 5002
