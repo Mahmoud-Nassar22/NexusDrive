@@ -11,19 +11,20 @@ pipeline {
         }
 
         stage('Build') {
-            steps {
-                // Read each Dockerfile and build the 3 images:
-                // auth-service, file-service, frontend
-                sh 'docker compose build'
-            }
+    steps {
+        dir('simple-nextcloud') {
+            sh 'docker compose build'
         }
+    }
+}
 
         stage('Deploy') {
-            steps {
-                // Start all 3 containers together, networked, in the background
-                sh 'docker compose up -d'
-            }
+    steps {
+        dir('simple-nextcloud') {
+            sh 'docker compose up -d'
         }
+    }
+}
 
         stage('Test') {
             steps {
