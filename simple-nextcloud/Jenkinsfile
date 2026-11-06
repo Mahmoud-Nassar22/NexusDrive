@@ -31,7 +31,7 @@ pipeline {
                 // Prove the app actually works: register a user,
                 // log in, upload a file, confirm it's listed.
                 sh '''
-                    sleep 10
+                    sleep 15
 
                     curl -s -X POST http://localhost:5001/register \
                         -H "Content-Type: application/json" \
