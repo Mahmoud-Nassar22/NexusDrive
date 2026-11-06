@@ -28,6 +28,8 @@ services:
       - auth-service
     networks:
       - simplecloud_net
+    ports:
+      - "5002:5002"
 
   frontend:
     build: ./frontend
