@@ -12,6 +12,8 @@ services:
       - auth_data:/data
     networks:
       - simplecloud_net
+    ports:
+      - "5001:5001"
 
   file-service:
     build: ./file-service
