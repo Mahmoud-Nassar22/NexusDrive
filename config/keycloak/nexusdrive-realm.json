@@ -12,6 +12,8 @@
     "realm": [
       { "name": "user", "description": "Regular NexusDrive user" },
       { "name": "admin", "description": "Can manage users and platform settings" },
+      { "name": "offline_access", "description": "Offline access (refresh tokens)" },
+      { "name": "uma_authorization", "description": "UMA authorization" },
       {
         "name": "default-roles-nexusdrive",
         "description": "Roles every new user gets",
@@ -29,21 +31,21 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "redirectUris": ["http://localhost:5173/*"],
-      "webOrigins": ["http://localhost:5173"],
+      "redirectUris": ["${NEXUSDRIVE_WEB_URL:http://localhost:5173}/*"],
+      "webOrigins": ["${NEXUSDRIVE_WEB_URL:http://localhost:5173}"],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5173/*"
+        "post.logout.redirect.uris": "${NEXUSDRIVE_WEB_URL:http://localhost:5173}/*"
       }
     },
     {
       "clientId": "nexusdrive-user-service",
       "name": "NexusDrive user-service (Keycloak Admin API)",
-      "description": "Service account used by user-service. The secret is for local development only; regenerate it in any shared environment.",
+      "description": "Service account used by user-service. Set NEXUSDRIVE_USER_SERVICE_SECRET when importing; the fallback is for local development only.",
       "enabled": true,
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "dev-only-user-service-secret",
+      "secret": "${NEXUSDRIVE_USER_SERVICE_SECRET:dev-only-user-service-secret}",
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,

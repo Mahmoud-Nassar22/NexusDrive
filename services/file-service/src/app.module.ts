@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule, createLoggerModule, HealthModule, MetricsModule } from '@nexusdrive/common';
 import { validateEnv, type Env } from './config/env';
+import { UserDirectoryClient } from './directory/user-directory.client';
 import { FilesController } from './files/files.controller';
 import { FilesService } from './files/files.service';
 import { StorageService } from './storage/storage.service';
@@ -15,12 +16,13 @@ import { StorageService } from './storage/storage.service';
       useFactory: (config: ConfigService<Env, true>) => ({
         issuerUrl: config.get('KEYCLOAK_ISSUER_URL', { infer: true }),
         audience: config.get('KEYCLOAK_AUDIENCE', { infer: true }),
+        internalUrl: config.get('KEYCLOAK_INTERNAL_URL', { infer: true }),
       }),
     }),
     HealthModule,
     MetricsModule,
   ],
   controllers: [FilesController],
-  providers: [FilesService, StorageService],
+  providers: [FilesService, StorageService, UserDirectoryClient],
 })
 export class AppModule {}

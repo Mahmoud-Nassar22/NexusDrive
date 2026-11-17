@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import type { Membership } from './me';
 
 export interface UserSummary {
   id: string;
@@ -9,6 +10,7 @@ export interface UserSummary {
   enabled: boolean;
   createdAt?: string;
   isAdmin: boolean;
+  department?: Membership;
 }
 
 const enc = encodeURIComponent;

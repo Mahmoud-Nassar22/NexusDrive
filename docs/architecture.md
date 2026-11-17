@@ -6,16 +6,16 @@ The first hand-drawn version is [`arch/arch.jpeg`](../arch/arch.jpeg). The diagr
 
 ## Components
 
-| Component              | Code                               | What it does                                                                                                                                                      |
-| ---------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **web**                | `apps/web`                         | React + Vite single-page app: files, diagrams, chat, meetings, admin link. Logs in with Keycloak (OIDC + PKCE).                                                   |
-| **file-service**       | `services/file-service`            | Lists a user's files and hands out short-lived **presigned S3 URLs**. The browser uploads and downloads directly to S3, so file bytes never pass through the pod. |
-| **chat-service**       | `services/chat-service`            | Realtime chat rooms over socket.io (history in Postgres, Redis adapter across replicas), plus issuing **LiveKit tokens** for video meetings.                      |
-| **user-service**       | `services/user-service`            | Admin page backend: lists users, grants/revokes `admin`, enables/disables accounts through the **Keycloak Admin REST API**. Stores nothing itself.                |
-| **Keycloak**           | upstream image + `config/keycloak` | Login, registration, SSO, MFA, users and roles (`user`, `admin`). Replaces the old auth-service; it is the source of truth that user-service manages.             |
-| **draw.io**            | upstream image (`jgraph/drawio`)   | Diagram editor embedded in an iframe. Diagrams are saved to S3 as `.drawio` files through file-service.                                                           |
-| **LiveKit**            | upstream image                     | WebRTC media server (SFU) for meetings. Needs UDP, so it's exposed with an NLB rather than the HTTP Ingress.                                                      |
-| **@nexusdrive/common** | `packages/common`                  | Shared NestJS code: JWT guard, health/ready, metrics, logging, bootstrap. See [service-contract.md](service-contract.md).                                         |
+| Component              | Code                               | What it does                                                                                                                                                                                                                  |
+| ---------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **web**                | `apps/web`                         | React + Vite single-page app: public landing page, home dashboard, files, diagrams, chat, meetings board, admin (users, departments). Logs in with Keycloak (OIDC + PKCE).                                                    |
+| **file-service**       | `services/file-service`            | Lists the files a user may see and hands out short-lived **presigned S3 URLs**. The browser uploads and downloads directly to S3, so file bytes never pass through the pod. Asks user-service whose files the caller may see. |
+| **chat-service**       | `services/chat-service`            | Realtime chat rooms over socket.io (history in Postgres, Redis adapter across replicas), plus the **meetings board**: creates LiveKit rooms, lists running ones, issues join tokens.                                          |
+| **user-service**       | `services/user-service`            | Users (through the **Keycloak Admin REST API**) and the company structure: **departments** with a head, team leaders and workers, stored in Postgres. Decides file visibility.                                                |
+| **Keycloak**           | upstream image + `config/keycloak` | Login, registration, SSO, MFA, users and roles (`user`, `admin`). Replaces the old auth-service; it is the source of truth that user-service manages.                                                                         |
+| **draw.io**            | upstream image (`jgraph/drawio`)   | Diagram editor embedded in an iframe. Diagrams are saved to S3 as `.drawio` files through file-service.                                                                                                                       |
+| **LiveKit**            | upstream image                     | WebRTC media server (SFU) for meetings. Needs UDP, so it's exposed with an NLB rather than the HTTP Ingress.                                                                                                                  |
+| **@nexusdrive/common** | `packages/common`                  | Shared NestJS code: JWT guard, health/ready, metrics, logging, bootstrap. See [service-contract.md](service-contract.md).                                                                                                     |
 
 ## Main flows
 
@@ -29,17 +29,29 @@ The first hand-drawn version is [`arch/arch.jpeg`](../arch/arch.jpeg). The diagr
 
 Downloads work the same way with a presigned GET URL.
 
+**Departments and file visibility.** Admins create departments and place each user in at most one, as **head**, **team leader** or **worker** (a worker may report to one team leader). Everyone uploads into their own folder; what they can _see_ narrows from the top down:
+
+| Role          | Sees the files of                           |
+| ------------- | ------------------------------------------- |
+| head          | everyone in the department                  |
+| team leader   | themself and the workers who report to them |
+| worker        | themself                                    |
+| no department | themself                                    |
+
+`GET /api/files` makes file-service call `GET /api/users/me/visibility` on user-service **with the caller's own token**, then lists each visible owner's S3 prefix. Downloading someone else's file (`?owner=<sub>`) is checked the same way and fails closed (503) if user-service is down; the listing falls back to own files only. Only the owner can overwrite or delete a file. Platform admins manage the structure but get no extra file access.
+
 **Edit a diagram.** draw.io runs in an iframe. On load, the web app fetches the XML through a download URL. On save, it uploads the XML through an upload URL.
 
-**Chat.** The browser opens socket.io (WebSocket transport only) at `/api/chat/socket.io` with its token, then joins a room and sends messages. Messages are stored in Postgres (`DATABASE_URL`; in memory if unset) and fanned out through the socket.io Redis adapter (`REDIS_URL`), so any number of replicas can run without sticky sessions. From a room, "Start meeting" opens a meeting with the same room name.
+**Chat.** The Chat page shows every room as a tile. A room is for the whole company or one department, from a minimum role up (everyone / team leaders and head / head only), so access follows the same hierarchy as files. Admins create rooms anywhere; department heads create rooms for their own department. The browser opens socket.io (WebSocket transport only) at `/api/chat/socket.io`; on `join`, chat-service asks user-service for the caller's department (with the caller's token) and refuses rooms they may not enter. Messages are stored in Postgres and fanned out through the socket.io Redis adapter (`REDIS_URL`), so any number of replicas can run without sticky sessions. From a room, "Start a meeting" opens the meetings board with the title filled in.
 
-**Meeting.**
+**Meetings.** Meetings are LiveKit rooms, so LiveKit itself is the list of what's running; nothing is stored.
 
-1. The browser calls `POST /api/chat/meetings/<room>/token`.
-2. It connects to LiveKit with that token.
-3. Audio and video flow browser ↔ LiveKit over UDP.
+1. Start: `POST /api/chat/meetings { title }` creates a room (`m-<random>`, title in its metadata) and returns a join token.
+2. Board: `GET /api/chat/meetings` lists running rooms; the web app shows them as tiles and refreshes every 5 s.
+3. Join: clicking a tile calls `POST /api/chat/meetings/<room>/token` (404 if it has ended), then connects to LiveKit.
+4. Audio and video flow browser ↔ LiveKit over UDP. An empty meeting closes after 5 minutes, or 30 s after the last person leaves.
 
-**Manage users.** The Admin page (admins only) calls `/api/users`. user-service checks the caller's `admin` role, then calls the Keycloak Admin REST API as its own service account (client-credentials grant). Admins can't demote or disable themselves.
+**Manage users and departments.** The Admin page (admins only) calls `/api/users` and `/api/users/departments`. user-service checks the caller's `admin` role, then calls the Keycloak Admin REST API as its own service account (client-credentials grant). Admins can't demote or disable themselves.
 
 ## Why some boxes from the first drawing changed
 

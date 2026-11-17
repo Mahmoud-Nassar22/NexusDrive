@@ -12,10 +12,10 @@ A private cloud platform for file storage and collaboration (files, diagrams, ch
 
 | Component               | Tech                      | Responsibility                                                             |
 | ----------------------- | ------------------------- | -------------------------------------------------------------------------- |
-| `apps/web`              | React + Vite (TypeScript) | Web UI: files, diagrams, chat, meetings                                    |
-| `services/file-service` | NestJS                    | Per-user files on S3 through presigned upload/download URLs                |
-| `services/chat-service` | NestJS + socket.io        | Realtime chat (history in Postgres, Redis fan-out), LiveKit meeting tokens |
-| `services/user-service` | NestJS                    | Admin user management over the Keycloak Admin API                          |
+| `apps/web`              | React + Vite (TypeScript) | Landing page, home dashboard, files, diagrams, chat, meetings board, admin |
+| `services/file-service` | NestJS                    | Files on S3 through presigned URLs; visibility by department role          |
+| `services/chat-service` | NestJS + socket.io        | Realtime chat (Postgres history, Redis fan-out); LiveKit meetings board    |
+| `services/user-service` | NestJS                    | Users (via Keycloak Admin API) and departments (Postgres)                  |
 | Keycloak                | upstream                  | Login, SSO, MFA, users and roles (OIDC)                                    |
 | draw.io                 | upstream                  | Embedded diagram editor; diagrams saved to S3                              |
 | LiveKit                 | upstream                  | WebRTC video/audio meetings                                                |
@@ -24,7 +24,7 @@ A private cloud platform for file storage and collaboration (files, diagrams, ch
 - Every service validates **Keycloak JWTs** and exposes `/health`, `/ready` and `/metrics`. Logs are JSON, and all config comes from env vars. See [docs/service-contract.md](docs/service-contract.md).
 - File bytes go **browser ↔ S3 directly**. Services only sign the URLs.
 
-More detail: [docs/architecture.md](docs/architecture.md).
+More detail: [docs/architecture.md](docs/architecture.md). Deploying it: [docs/deployment-notes.md](docs/deployment-notes.md).
 
 ## Deployment architecture
 

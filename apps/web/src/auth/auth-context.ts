@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react';
 export interface User {
   sub: string;
   username: string;
+  firstName?: string;
   email?: string;
   roles: string[];
 }

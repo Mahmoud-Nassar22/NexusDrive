@@ -1,5 +1,15 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
-import { CurrentUser, JwtAuthGuard, type AuthUser } from '@nexusdrive/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { BearerToken, CurrentUser, JwtAuthGuard, type AuthUser } from '@nexusdrive/common';
 import { CreateUploadUrlDto } from './dto/create-upload-url.dto';
 import { FilesService } from './files.service';
 
@@ -9,10 +19,10 @@ import { FilesService } from './files.service';
 export class FilesController {
   constructor(private readonly files: FilesService) {}
 
-  /** GET /api/files */
+  /** GET /api/files: own files plus those of people the caller may see */
   @Get()
-  async list(@CurrentUser() user: AuthUser) {
-    return { files: await this.files.list(user) };
+  list(@CurrentUser() user: AuthUser, @BearerToken() token: string) {
+    return this.files.list(user, token);
   }
 
   /** POST /api/files/upload-url  -> browser then PUTs the file to the returned URL */
@@ -21,13 +31,18 @@ export class FilesController {
     return this.files.createUploadUrl(user, dto);
   }
 
-  /** GET /api/files/:name/download-url */
+  /** GET /api/files/:name/download-url?owner=<sub>  (owner defaults to the caller) */
   @Get(':name/download-url')
-  createDownloadUrl(@CurrentUser() user: AuthUser, @Param('name') name: string) {
-    return this.files.createDownloadUrl(user, name);
+  createDownloadUrl(
+    @CurrentUser() user: AuthUser,
+    @BearerToken() token: string,
+    @Param('name') name: string,
+    @Query('owner') owner?: string,
+  ) {
+    return this.files.createDownloadUrl(user, token, name, owner);
   }
 
-  /** DELETE /api/files/:name */
+  /** DELETE /api/files/:name  (own files only) */
   @Delete(':name')
   @HttpCode(204)
   async delete(@CurrentUser() user: AuthUser, @Param('name') name: string) {

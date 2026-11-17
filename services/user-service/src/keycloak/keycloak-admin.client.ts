@@ -6,7 +6,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ReadinessRegistry } from '@nexusdrive/common';
+import { keycloakServerUrl, ReadinessRegistry } from '@nexusdrive/common';
 import type { Env } from '../config/env';
 
 const TIMEOUT_MS = 5000;
@@ -40,9 +40,12 @@ export class KeycloakAdminClient implements OnModuleInit {
     config: ConfigService<Env, true>,
     private readonly readiness: ReadinessRegistry,
   ) {
-    const issuer = config.get('KEYCLOAK_ISSUER_URL', { infer: true }).replace(/\/$/, '');
-    this.tokenUrl = `${issuer}/protocol/openid-connect/token`;
-    this.adminBase = adminBaseUrl(issuer);
+    const server = keycloakServerUrl(
+      config.get('KEYCLOAK_ISSUER_URL', { infer: true }),
+      config.get('KEYCLOAK_INTERNAL_URL', { infer: true }),
+    );
+    this.tokenUrl = `${server}/protocol/openid-connect/token`;
+    this.adminBase = adminBaseUrl(server);
     this.clientId = config.get('KEYCLOAK_ADMIN_CLIENT_ID', { infer: true });
     this.clientSecret = config.get('KEYCLOAK_ADMIN_CLIENT_SECRET', { infer: true });
   }

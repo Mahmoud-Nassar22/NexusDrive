@@ -43,8 +43,14 @@ export class RedisPubSub implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    if (this.clients) {
-      await Promise.allSettled([this.clients.pub.quit(), this.clients.sub.quit()]);
+    // quit() waits for pending commands, so it never returns while Redis is
+    // unreachable (commands wait for a reconnect). Only use it when connected.
+    for (const client of Object.values(this.clients ?? {})) {
+      if (client.status === 'ready') {
+        await client.quit().catch(() => client.disconnect());
+      } else {
+        client.disconnect();
+      }
     }
   }
 }

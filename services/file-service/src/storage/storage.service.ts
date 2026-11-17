@@ -38,6 +38,11 @@ export class StorageService implements OnModuleInit {
       region: config.get('AWS_REGION', { infer: true }),
       endpoint: config.get('S3_ENDPOINT', { infer: true }),
       forcePathStyle: config.get('S3_FORCE_PATH_STYLE', { infer: true }),
+      // Since SDK v3.729 the default adds a CRC32 checksum to presigned PUT URLs,
+      // computed over an empty body at signing time, so the browser's real upload
+      // fails with BadDigest. Only send checksums when an operation requires them.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
 

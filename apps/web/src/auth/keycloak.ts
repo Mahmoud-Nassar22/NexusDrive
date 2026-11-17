@@ -10,19 +10,33 @@ export const keycloak = new Keycloak({
 
 let initPromise: Promise<boolean> | undefined;
 
-/** Redirects to the Keycloak login page if the user isn't signed in. */
+/**
+ * Checks for an existing Keycloak session without forcing a login, so visitors
+ * who aren't signed in see the landing page. Resolves to true when signed in.
+ */
 export function initAuth(): Promise<boolean> {
   initPromise ??= keycloak.init({
-    onLoad: 'login-required',
+    onLoad: 'check-sso',
+    silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
     pkceMethod: 'S256',
     checkLoginIframe: false,
   });
   return initPromise;
 }
 
-/** Returns a valid access token, refreshing it if it expires within 30 seconds. */
+export const login = () => keycloak.login();
+export const register = () => keycloak.register();
+
+/**
+ * Returns a valid access token, refreshing it if it expires within 30 seconds.
+ * If the session is gone (e.g. expired overnight), sends the user to log in again.
+ */
 export async function getToken(): Promise<string> {
-  await keycloak.updateToken(30);
+  try {
+    await keycloak.updateToken(30);
+  } catch {
+    await keycloak.login();
+  }
   if (!keycloak.token) {
     throw new Error('not authenticated');
   }

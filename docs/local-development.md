@@ -2,23 +2,23 @@
 
 ## Requirements
 
-- **Node.js 22 LTS** (see `.nvmrc`). NestJS 11 does not run on Node 18.
+- **Node.js 22 LTS** (see `.nvmrc`). Older versions are unsupported: on Node 18, for example, the LiveKit room API fails because `globalThis.crypto` is missing.
 - The backing services below, running locally. Packaging them (Docker Compose for dev, Helm for the cluster) is a DevOps-track task. Until that exists, run them however you like.
 
-| Dependency               | Used by                                     | Local default                                                                                                       |
-| ------------------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Keycloak                 | everything (login)                          | `http://localhost:8080`, import [`config/keycloak/nexusdrive-realm.json`](../config/keycloak/nexusdrive-realm.json) |
-| MinIO (S3 stand-in)      | file-service                                | `http://localhost:9000`, bucket `nexusdrive-files`, CORS allowing `http://localhost:5173`                           |
-| LiveKit server (`--dev`) | meetings                                    | `ws://localhost:7880`, key `devkey`, secret `secret`                                                                |
-| draw.io                  | diagram editor                              | `http://localhost:8081`                                                                                             |
-| PostgreSQL (optional)    | chat-service (message history)              | `postgres://nexusdrive:nexusdrive@localhost:5432/nexusdrive`. Without it, history is kept in memory                 |
-| Redis (optional)         | chat-service (rooms shared across replicas) | `redis://localhost:6379`. Without it, one chat-service replica only                                                 |
+| Dependency               | Used by                                                   | Local default                                                                                                                                                                              |
+| ------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Keycloak                 | everything (login)                                        | `http://localhost:8080`, import [`config/keycloak/nexusdrive-realm.json`](../config/keycloak/nexusdrive-realm.json)                                                                        |
+| S3 stand-in              | file-service                                              | `http://localhost:9000`, bucket `nexusdrive-files`, CORS allowing `http://localhost:5173`. MinIO no longer publishes images; SeaweedFS (`chrislusf/seaweedfs server -s3`, port 8333) works |
+| LiveKit server (`--dev`) | meetings                                                  | `ws://localhost:7880`, key `devkey`, secret `secret`                                                                                                                                       |
+| draw.io                  | diagram editor                                            | `http://localhost:8081`                                                                                                                                                                    |
+| PostgreSQL               | user-service (departments), chat-service (rooms, history) | `postgres://nexusdrive:nexusdrive@localhost:5432/nexusdrive`                                                                                                                               |
+| Redis (optional)         | chat-service (rooms shared across replicas)               | `redis://localhost:6379`. Without it, one chat-service replica only                                                                                                                        |
 
 After importing the realm, create a user in the Keycloak admin console. Give them the `admin` role if they need the Admin page.
 
 The realm also creates the `nexusdrive-user-service` client that user-service logs in with. If you imported the realm **before** this client existed, delete the `nexusdrive` realm and import it again (or create the client by hand as described in [services/user-service/README.md](../services/user-service/README.md)).
 
-chat-service creates its `chat_messages` table on first use. To turn on Postgres or Redis, set `DATABASE_URL` / `REDIS_URL` in `services/chat-service/.env`.
+Tables are created on first use (user-service: `departments`, `department_members`; chat-service: `chat_rooms`, `chat_messages`). To turn on Redis, set `REDIS_URL` in `services/chat-service/.env`.
 
 ## Run
 
@@ -41,14 +41,16 @@ The Vite dev server proxies `/api/files`, `/api/chat` and `/api/users` to the se
 
 ## How the pieces connect
 
-| Page     | Calls                                                                      | Which then talks to              |
-| -------- | -------------------------------------------------------------------------- | -------------------------------- |
-| (all)    | Keycloak login, token on every request                                     | every service checks it via JWKS |
-| Files    | `/api/files` → presigned URL → browser PUT/GET to S3                       | MinIO / S3                       |
-| Diagrams | draw.io iframe; load/save through `/api/files` presigned URLs              | MinIO / S3                       |
-| Chat     | socket.io `/api/chat/socket.io`; "Start meeting" opens Meetings, same room | Postgres, Redis (optional)       |
-| Meetings | `POST /api/chat/meetings/<room>/token` → connect to LiveKit                | LiveKit                          |
-| Admin    | `/api/users` (list, make admin, disable)                                   | Keycloak Admin REST API          |
+| Page     | Calls                                                                                              | Which then talks to               |
+| -------- | -------------------------------------------------------------------------------------------------- | --------------------------------- |
+| (all)    | Keycloak login, token on every request                                                             | every service checks it via JWKS  |
+| Files    | `/api/files` → presigned URL → browser PUT/GET to S3                                               | S3                                |
+| Diagrams | draw.io iframe; load/save through `/api/files` presigned URLs                                      | S3                                |
+| Home     | `/api/users/me`, `/api/files`, `/api/chat/meetings`                                                | all of the below                  |
+| Files    | (also) file-service → `GET /api/users/me/visibility` on user-service                               | Postgres (departments)            |
+| Chat     | `/api/chat/rooms` (tiles), socket.io `/api/chat/socket.io`; chat-service → user-service for access | Postgres, Redis (optional)        |
+| Meetings | `GET/POST /api/chat/meetings`, `POST …/<room>/token` → connect to LiveKit                          | LiveKit room API                  |
+| Admin    | `/api/users` (users), `/api/users/departments` (departments)                                       | Keycloak Admin REST API, Postgres |
 
 ## Checks before opening a PR
 
@@ -66,5 +68,5 @@ curl localhost:3001/ready       # 200 only if S3/MinIO is reachable
 curl localhost:3001/metrics     # Prometheus text format
 curl localhost:3001/api/files   # 401 without a token
 curl localhost:3002/ready       # checks Postgres / Redis when configured
-curl localhost:3003/ready       # 200 only if the user-service client can log in to Keycloak
+curl localhost:3003/ready       # 200 only if Postgres is up and the user-service client can log in to Keycloak
 ```

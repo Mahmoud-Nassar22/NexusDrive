@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import type { AuthUser } from '@nexusdrive/common';
+import type { DepartmentsService } from '../departments/departments.service';
 import type { KeycloakAdminClient } from '../keycloak/keycloak-admin.client';
 import { UsersService } from './users.service';
 
@@ -13,7 +14,11 @@ function setup(responses: Record<string, unknown>) {
     if (!(key in responses)) throw new Error(`unexpected ${key}`);
     return responses[key];
   });
-  const service = new UsersService({ request } as unknown as KeycloakAdminClient);
+  const departments = {
+    membership: jest.fn().mockResolvedValue(undefined),
+    memberships: jest.fn().mockResolvedValue(new Map()),
+  } as unknown as DepartmentsService;
+  const service = new UsersService({ request } as unknown as KeycloakAdminClient, departments);
   return { request, service };
 }
 

@@ -10,3 +10,13 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Set by /config.js at runtime (see public/config.js). */
+interface Window {
+  __NEXUSDRIVE_CONFIG__?: {
+    keycloakUrl?: string;
+    realm?: string;
+    clientId?: string;
+    drawioUrl?: string;
+  };
+}

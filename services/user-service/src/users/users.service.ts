@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { AuthUser } from '@nexusdrive/common';
+import { DepartmentsService, type Membership } from '../departments/departments.service';
 import { KeycloakAdminClient } from '../keycloak/keycloak-admin.client';
 
 export const ADMIN_ROLE = 'admin';
@@ -30,9 +31,10 @@ export interface UserSummary {
   enabled: boolean;
   createdAt?: string;
   isAdmin: boolean;
+  department?: Membership;
 }
 
-function toSummary(u: KeycloakUser, isAdmin: boolean): UserSummary {
+function toSummary(u: KeycloakUser, isAdmin: boolean, department?: Membership): UserSummary {
   return {
     id: u.id,
     username: u.username,
@@ -43,6 +45,7 @@ function toSummary(u: KeycloakUser, isAdmin: boolean): UserSummary {
     createdAt:
       u.createdTimestamp === undefined ? undefined : new Date(u.createdTimestamp).toISOString(),
     isAdmin,
+    department,
   };
 }
 
@@ -52,7 +55,10 @@ function toSummary(u: KeycloakUser, isAdmin: boolean): UserSummary {
  */
 @Injectable()
 export class UsersService {
-  constructor(private readonly keycloak: KeycloakAdminClient) {}
+  constructor(
+    private readonly keycloak: KeycloakAdminClient,
+    private readonly departments: DepartmentsService,
+  ) {}
 
   async list(search?: string): Promise<UserSummary[]> {
     const params = new URLSearchParams({
@@ -71,17 +77,20 @@ export class UsersService {
       ),
     ]);
     const adminIds = new Set(admins.map((a) => a.id));
-    return users.map((u) => toSummary(u, adminIds.has(u.id)));
+    const memberships = await this.departments.memberships(users.map((u) => u.id));
+    return users.map((u) => toSummary(u, adminIds.has(u.id), memberships.get(u.id)));
   }
 
   async get(id: string): Promise<UserSummary> {
-    const [user, roles] = await Promise.all([
+    const [user, roles, membership] = await Promise.all([
       this.keycloak.request<KeycloakUser>('GET', `/users/${id}`),
       this.keycloak.request<KeycloakRole[]>('GET', `/users/${id}/role-mappings/realm`),
+      this.departments.membership(id),
     ]);
     return toSummary(
       user,
       roles.some((r) => r.name === ADMIN_ROLE),
+      membership,
     );
   }
 

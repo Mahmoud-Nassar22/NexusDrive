@@ -5,6 +5,7 @@ import { AdminPage } from './pages/AdminPage';
 import { ChatPage } from './pages/ChatPage';
 import { DiagramPage } from './pages/DiagramPage';
 import { FilesPage } from './pages/FilesPage';
+import { HomePage } from './pages/HomePage';
 
 // LiveKit is large; only download it when someone opens a meeting.
 const MeetingPage = lazy(() =>
@@ -15,7 +16,7 @@ export function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<Navigate to="/files" replace />} />
+        <Route index element={<HomePage />} />
         <Route path="files" element={<FilesPage />} />
         <Route path="diagram/:name" element={<DiagramPage />} />
         <Route path="chat" element={<ChatPage />} />
@@ -28,7 +29,7 @@ export function App() {
           }
         />
         <Route path="admin" element={<AdminPage />} />
-        <Route path="*" element={<Navigate to="/files" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

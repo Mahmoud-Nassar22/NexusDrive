@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { getDownloadUrl, uploadFile } from '../api/files';
 import { config } from '../config';
 
@@ -21,8 +21,19 @@ async function loadXml(name: string): Promise<string> {
  * init -> we send "load"; save -> we upload to S3; exit -> back to the file list.
  * (S3 bucket CORS must allow GET/PUT from the app origin.)
  */
+const newDiagramPath = () => `/diagram/${encodeURIComponent(`diagram-${Date.now()}.drawio`)}`;
+
+/** /diagram/new picks a fresh filename; anything else opens that file. */
 export function DiagramPage() {
-  const { name = 'untitled.drawio' } = useParams();
+  const { name = 'new' } = useParams();
+  return name === 'new' ? (
+    <Navigate to={newDiagramPath()} replace />
+  ) : (
+    <DiagramEditor name={name} />
+  );
+}
+
+function DiagramEditor({ name }: { name: string }) {
   const navigate = useNavigate();
   const frame = useRef<HTMLIFrameElement>(null);
 

@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Put, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser, JwtAuthGuard, Roles, type AuthUser } from '@nexusdrive/common';
+import { DepartmentsService } from '../departments/departments.service';
 import { ListUsersQuery, SetAdminDto, SetEnabledDto } from './dto/users.dto';
 import { ADMIN_ROLE, UsersService } from './users.service';
 
@@ -7,12 +8,24 @@ import { ADMIN_ROLE, UsersService } from './users.service';
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly departments: DepartmentsService,
+  ) {}
 
-  /** GET /api/users/me: the caller, as seen in their token (any signed-in user). */
+  /** GET /api/users/me: the caller (from their token) and their department, if any. */
   @Get('me')
-  me(@CurrentUser() user: AuthUser) {
-    return user;
+  async me(@CurrentUser() user: AuthUser) {
+    return { ...user, department: await this.departments.membership(user.sub) };
+  }
+
+  /**
+   * GET /api/users/me/visibility: whose files the caller may see. Called by
+   * file-service with the caller's token.
+   */
+  @Get('me/visibility')
+  visibility(@CurrentUser() user: AuthUser) {
+    return this.departments.visibility(user);
   }
 
   /** GET /api/users?search=: admins only */

@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
-import { AUTH_OPTIONS, type AuthModuleOptions, type AuthUser } from './auth.types';
+import {
+  AUTH_OPTIONS,
+  keycloakServerUrl,
+  type AuthModuleOptions,
+  type AuthUser,
+} from './auth.types';
 
 interface KeycloakClaims extends JWTPayload {
   preferred_username?: string;
@@ -17,9 +22,9 @@ export class TokenVerifier {
   private readonly jwks: ReturnType<typeof createRemoteJWKSet>;
 
   constructor(@Inject(AUTH_OPTIONS) private readonly options: AuthModuleOptions) {
-    const issuer = options.issuerUrl.replace(/\/$/, '');
+    const server = keycloakServerUrl(options.issuerUrl, options.internalUrl);
     // Keys are fetched lazily on first use and cached.
-    this.jwks = createRemoteJWKSet(new URL(`${issuer}/protocol/openid-connect/certs`));
+    this.jwks = createRemoteJWKSet(new URL(`${server}/protocol/openid-connect/certs`));
   }
 
   async verify(token: string): Promise<AuthUser> {
