@@ -1,0 +1,40 @@
+{
+  "realm": "nexusdrive",
+  "displayName": "NexusDrive",
+  "enabled": true,
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": true,
+  "bruteForceProtected": true,
+  "sslRequired": "external",
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      { "name": "user", "description": "Regular NexusDrive user" },
+      { "name": "admin", "description": "Can manage users and platform settings" },
+      {
+        "name": "default-roles-nexusdrive",
+        "description": "Roles every new user gets",
+        "composite": true,
+        "composites": { "realm": ["offline_access", "uma_authorization", "user"] }
+      }
+    ]
+  },
+  "defaultRole": { "name": "default-roles-nexusdrive", "composite": true, "clientRole": false },
+  "clients": [
+    {
+      "clientId": "nexusdrive-web",
+      "name": "NexusDrive web app",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      }
+    }
+  ]
+}

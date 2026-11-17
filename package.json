@@ -1,0 +1,34 @@
+{
+  "name": "nexusdrive",
+  "private": true,
+  "description": "NexusDrive: private cloud storage and collaboration platform",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build:common": "npm run build -w @nexusdrive/common",
+    "build": "npm run build:common && npm run build -w @nexusdrive/file-service -w @nexusdrive/chat-service -w @nexusdrive/web",
+    "dev:files": "npm run dev -w @nexusdrive/file-service",
+    "dev:chat": "npm run dev -w @nexusdrive/chat-service",
+    "dev:web": "npm run dev -w @nexusdrive/web",
+    "test": "npm run build:common && npm test --workspaces --if-present",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2",
+    "typescript": "~5.7.2",
+    "typescript-eslint": "^8.19.0"
+  }
+}

@@ -1,120 +1,90 @@
-# ☁️ NexusDrive – Private Cloud Storage & Collaboration Platform
+# ☁️ NexusDrive
 
-NexusDrive is a private cloud storage and collaboration platform built on **Nextcloud**, designed to provide users with a secure, scalable, and self-hosted environment for storing, managing, and sharing files.
+A private cloud platform for file storage and collaboration (files, diagrams, chat and video meetings), built as a set of microservices and run on **Kubernetes (Amazon EKS)**.
 
-The project aims to deliver an alternative to traditional cloud storage services while providing greater control over data, privacy, and infrastructure.
+> DevOps graduation project. The focus is on how the system is built, shipped, secured and operated.
 
----
-
-## 🎯 Project Objectives
-
-- Provide secure and centralized cloud file storage.
-- Enable file sharing and collaboration between users.
-- Implement scalable infrastructure using containerization and orchestration.
-- Ensure data persistence and availability.
-- Apply DevOps practices to automate deployment and infrastructure management.
-- Improve security through network isolation, encryption, and access control.
+![Architecture](arch/nexusdrive-architecture.svg)
 
 ---
 
-## 🏗️ Technology Stack
+## Application architecture
 
-| Technology | Purpose |
-|---|---|
-| Nextcloud | Core cloud storage application |
-| Docker | Application containerization |
-| Kubernetes | Container orchestration |
-| PostgreSQL / MariaDB | Database management |
-| Redis | Caching and performance optimization |
-| Nginx | Reverse proxy and traffic management |
-| Cloudflare | DNS management and web protection |
-| StrongSwan | IPsec VPN connectivity |
-| Prometheus & Grafana | Monitoring and visualization |
-| Git & GitHub | Version control and collaboration |
-| GitHub Actions | CI/CD automation |
+| Component               | Tech                      | Responsibility                                              |
+| ----------------------- | ------------------------- | ----------------------------------------------------------- |
+| `apps/web`              | React + Vite (TypeScript) | Web UI: files, diagrams, chat, meetings                     |
+| `services/file-service` | NestJS                    | Per-user files on S3 through presigned upload/download URLs |
+| `services/chat-service` | NestJS + socket.io        | Realtime chat rooms and LiveKit meeting tokens              |
+| Keycloak                | upstream                  | Login, SSO, MFA, users and roles (OIDC)                     |
+| draw.io                 | upstream                  | Embedded diagram editor; diagrams saved to S3               |
+| LiveKit                 | upstream                  | WebRTC video/audio meetings                                 |
+| PostgreSQL · Redis · S3 | managed on AWS            | Data, cache / pub-sub, file storage                         |
 
----
+- Every service validates **Keycloak JWTs** and exposes `/health`, `/ready` and `/metrics`. Logs are JSON, and all config comes from env vars. See [docs/service-contract.md](docs/service-contract.md).
+- File bytes go **browser ↔ S3 directly**. Services only sign the URLs.
 
-## 🏛️ Proposed Architecture
+More detail: [docs/architecture.md](docs/architecture.md).
 
-```text
-                  Users
-                    |
-                    v
-               Cloudflare
-                    |
-                    v
-              HTTPS / TLS
-                    |
-                    v
-             Nginx Ingress
-                    |
-                    v
-            Kubernetes Cluster
-                    |
-             Nextcloud Pods
-                    |
-          +---------+---------+
-          |                   |
-          v                   v
-      PostgreSQL             Redis
-          |                   |
-          v                   v
-      Persistent          Cache
-       Storage
-          |
-          v
-    Persistent Volumes
+## Deployment architecture
+
+```
+Users → DNS (Route53/Cloudflare) → AWS Load Balancer (TLS) → Ingress → EKS
+  EKS namespaces
+    app         web · file-service · chat-service · drawio · livekit (UDP via NLB)
+    identity    keycloak
+    platform    argo-cd · cert-manager · external-dns · external-secrets · aws-lb-controller
+    monitoring  prometheus · grafana · loki
+  AWS managed   RDS PostgreSQL · ElastiCache Redis · S3 · ECR · Secrets Manager
 ```
 
-*Note: This represents the proposed architecture and may evolve during implementation.*
+Everything is provisioned with Terraform. Pods reach AWS through IAM roles (IRSA), so there are no static keys.
 
----
+## Planned DevOps features
 
-## 📋 Project Work Plan
+| Area                   | Tools                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------ |
+| Infrastructure as Code | Terraform: VPC, EKS, RDS, S3, ECR, IAM                                                     |
+| CI                     | GitHub Actions or Jenkins: lint, test, build, Trivy image scan, push to ECR                |
+| CD / GitOps            | Helm charts per service, Argo CD, separate dev and prod environments                       |
+| Networking             | Ingress, cert-manager (TLS), ExternalDNS, NetworkPolicies                                  |
+| Secrets                | AWS Secrets Manager + External Secrets Operator                                            |
+| Observability          | Prometheus, Grafana dashboards, Loki logs, Alertmanager                                    |
+| Security               | Keycloak SSO/MFA, Pod Security Standards, least-privilege IAM, image scanning              |
+| Reliability            | HPA autoscaling, PodDisruptionBudgets, RDS and Velero backups with a tested restore        |
+| Cost control           | Local development on kind/k3d; AWS brought up for demos and torn down after; budget alarms |
 
-The project will be developed through the following phases:
+## Repository layout
 
-1. **Planning & Research:** Define requirements and design the system architecture.
-2. **Environment Setup:** Prepare Linux environments and infrastructure.
-3. **Containerization:** Deploy Nextcloud and its dependencies using Docker.
-4. **Orchestration:** Migrate the deployment to Kubernetes.
-5. **Networking & Security:** Configure ingress, TLS, access control, and VPN connectivity.
-6. **Storage Management:** Configure persistent storage and backup mechanisms.
-7. **Monitoring:** Integrate monitoring and visualization tools.
-8. **Testing & Documentation:** Validate functionality, performance, and security.
+```
+apps/web/              React frontend
+services/              NestJS backend services
+packages/common/       shared service code (auth, health, metrics, logging)
+config/keycloak/       Keycloak realm (roles, web client)
+docs/                  architecture, service contract, local development
+arch/                  diagrams
+```
 
----
+## Getting started
 
-## 👥 Team Members
+Requires Node.js 22. See [docs/local-development.md](docs/local-development.md) for the backing services.
 
-| # | Team Member |
-|---|---|
-| 1 | Anas Elfeky |
-| 2 | Mahmoud Khaled |
-| 3 | Aser Ahmed |
-| 4 | Mohamed Bahaa |
-| 5 | Elsayed Mohamed |
-| 6 | Ali Abdou |
+```bash
+npm install
+npm run build
+npm test
+```
 
----
+## 👥 Team
 
-## 📈 Project Goals
+| #   | Team member     |
+| --- | --------------- |
+| 1   | Anas Elfeky     |
+| 2   | Mahmoud Khaled  |
+| 3   | Aser Ahmed      |
+| 4   | Mohamed Bahaa   |
+| 5   | Elsayed Mohamed |
+| 6   | Ali Abdou       |
 
-- Build a functional private cloud storage platform.
-- Demonstrate practical DevOps and Cloud Computing skills.
-- Implement reliable and secure infrastructure.
-- Apply real-world containerization and orchestration concepts.
-- Develop a foundation that can be extended into a cloud hosting service.
-
----
-
-## 📌 Project Status
-
-🚧 **Under Development**
-
-This project is being developed as a Graduation Project, with a focus on Cloud Computing, DevOps, Infrastructure Management, and Cybersecurity.
-
----
+🚧 **Status:** under development. Application skeleton is in place; infrastructure and pipelines are next.
 
 **NexusDrive Team © 2026**
