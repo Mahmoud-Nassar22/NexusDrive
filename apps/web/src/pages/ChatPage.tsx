@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { io, type Socket } from 'socket.io-client';
 import { getToken } from '../auth/keycloak';
 
@@ -10,8 +11,11 @@ interface ChatMessage {
   at: string;
 }
 
+type JoinAck = { room: string; history: ChatMessage[] };
+
 export function ChatPage() {
   const socketRef = useRef<Socket | null>(null);
+  const joinedRef = useRef<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [room, setRoom] = useState('general');
   const [joined, setJoined] = useState<string | null>(null);
@@ -19,12 +23,26 @@ export function ChatPage() {
   const [text, setText] = useState('');
 
   useEffect(() => {
+    function enter(socket: Socket, name: string) {
+      socket.emit('join', { room: name }, (res: JoinAck) => {
+        joinedRef.current = res.room;
+        setJoined(res.room);
+        setMessages(res.history);
+      });
+    }
+
     // Same origin; the Ingress (or Vite proxy) routes /api/chat to chat-service.
+    // WebSocket only (no long-polling), so several replicas work without sticky sessions.
     const socket = io({
       path: '/api/chat/socket.io',
+      transports: ['websocket'],
       auth: (cb) => void getToken().then((token) => cb({ token })),
     });
-    socket.on('connect', () => setConnected(true));
+    socket.on('connect', () => {
+      setConnected(true);
+      // After a reconnect (e.g. the pod restarted) the server forgot our room.
+      if (joinedRef.current) enter(socket, joinedRef.current);
+    });
     socket.on('disconnect', () => setConnected(false));
     socket.on('message', (m: ChatMessage) => setMessages((prev) => [...prev, m]));
     socketRef.current = socket;
@@ -35,7 +53,8 @@ export function ChatPage() {
 
   function join(e: FormEvent) {
     e.preventDefault();
-    socketRef.current?.emit('join', { room }, (res: { room: string; history: ChatMessage[] }) => {
+    socketRef.current?.emit('join', { room }, (res: JoinAck) => {
+      joinedRef.current = res.room;
       setJoined(res.room);
       setMessages(res.history);
     });
@@ -62,6 +81,12 @@ export function ChatPage() {
       </form>
       {joined && (
         <>
+          <div className="row">
+            <span className="muted">#{joined}</span>
+            <Link className="button secondary" to={`/meet?room=${encodeURIComponent(joined)}`}>
+              Start meeting in #{joined}
+            </Link>
+          </div>
           <ul className="messages">
             {messages
               .filter((m) => m.room === joined)

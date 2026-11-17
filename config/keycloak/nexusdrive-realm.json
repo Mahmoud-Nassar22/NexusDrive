@@ -35,6 +35,29 @@
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "http://localhost:5173/*"
       }
+    },
+    {
+      "clientId": "nexusdrive-user-service",
+      "name": "NexusDrive user-service (Keycloak Admin API)",
+      "description": "Service account used by user-service. The secret is for local development only; regenerate it in any shared environment.",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dev-only-user-service-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-nexusdrive-user-service",
+      "enabled": true,
+      "serviceAccountClientId": "nexusdrive-user-service",
+      "clientRoles": {
+        "realm-management": ["view-users", "query-users", "manage-users", "view-realm"]
+      }
     }
   ]
 }

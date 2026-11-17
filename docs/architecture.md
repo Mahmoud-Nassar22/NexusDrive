@@ -10,8 +10,9 @@ The first hand-drawn version is [`arch/arch.jpeg`](../arch/arch.jpeg). The diagr
 | ---------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **web**                | `apps/web`                         | React + Vite single-page app: files, diagrams, chat, meetings, admin link. Logs in with Keycloak (OIDC + PKCE).                                                   |
 | **file-service**       | `services/file-service`            | Lists a user's files and hands out short-lived **presigned S3 URLs**. The browser uploads and downloads directly to S3, so file bytes never pass through the pod. |
-| **chat-service**       | `services/chat-service`            | Realtime chat rooms over socket.io, plus issuing **LiveKit tokens** for video meetings.                                                                           |
-| **Keycloak**           | upstream image + `config/keycloak` | Login, registration, SSO, MFA, users and roles (`user`, `admin`). Replaces the old auth-service and the planned user-management service.                          |
+| **chat-service**       | `services/chat-service`            | Realtime chat rooms over socket.io (history in Postgres, Redis adapter across replicas), plus issuing **LiveKit tokens** for video meetings.                      |
+| **user-service**       | `services/user-service`            | Admin page backend: lists users, grants/revokes `admin`, enables/disables accounts through the **Keycloak Admin REST API**. Stores nothing itself.                |
+| **Keycloak**           | upstream image + `config/keycloak` | Login, registration, SSO, MFA, users and roles (`user`, `admin`). Replaces the old auth-service; it is the source of truth that user-service manages.             |
 | **draw.io**            | upstream image (`jgraph/drawio`)   | Diagram editor embedded in an iframe. Diagrams are saved to S3 as `.drawio` files through file-service.                                                           |
 | **LiveKit**            | upstream image                     | WebRTC media server (SFU) for meetings. Needs UDP, so it's exposed with an NLB rather than the HTTP Ingress.                                                      |
 | **@nexusdrive/common** | `packages/common`                  | Shared NestJS code: JWT guard, health/ready, metrics, logging, bootstrap. See [service-contract.md](service-contract.md).                                         |
@@ -30,7 +31,7 @@ Downloads work the same way with a presigned GET URL.
 
 **Edit a diagram.** draw.io runs in an iframe. On load, the web app fetches the XML through a download URL. On save, it uploads the XML through an upload URL.
 
-**Chat.** The browser opens socket.io at `/api/chat/socket.io` with its token, then joins a room and sends messages. History is in memory for now. Postgres comes next, and then a Redis adapter for running more than one replica.
+**Chat.** The browser opens socket.io (WebSocket transport only) at `/api/chat/socket.io` with its token, then joins a room and sends messages. Messages are stored in Postgres (`DATABASE_URL`; in memory if unset) and fanned out through the socket.io Redis adapter (`REDIS_URL`), so any number of replicas can run without sticky sessions. From a room, "Start meeting" opens a meeting with the same room name.
 
 **Meeting.**
 
@@ -38,9 +39,11 @@ Downloads work the same way with a presigned GET URL.
 2. It connects to LiveKit with that token.
 3. Audio and video flow browser ↔ LiveKit over UDP.
 
+**Manage users.** The Admin page (admins only) calls `/api/users`. user-service checks the caller's `admin` role, then calls the Keycloak Admin REST API as its own service account (client-credentials grant). Admins can't demote or disable themselves.
+
 ## Why some boxes from the first drawing changed
 
 - **Firebase was removed.** It's a Google SaaS and can't run in the cluster. Postgres and Redis cover chat storage and fan-out.
-- **Auth Service + User Management were merged into Keycloak.** Writing auth yourselves is a security risk, and Keycloak gives SSO, MFA and an admin UI for free.
+- **Auth Service was replaced by Keycloak.** Writing auth yourselves is a security risk, and Keycloak gives SSO, MFA and an admin UI for free. **User Management** survives as the small user-service, which manages users _in_ Keycloak instead of keeping its own user table.
 - **Jenkins moved out of the app cluster.** CI must not share a failure or security domain with production, and must never talk to the app database.
 - **Draw.io is its own deployment**, not part of file management.

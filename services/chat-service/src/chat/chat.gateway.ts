@@ -3,14 +3,17 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
 import { TokenVerifier, type AuthUser } from '@nexusdrive/common';
+import { createAdapter } from '@socket.io/redis-adapter';
 import type { Server, Socket } from 'socket.io';
 import { ChatStore, ROOM_PATTERN, type ChatMessage } from './chat.store';
+import { RedisPubSub } from './redis-pubsub';
 
 type AuthedSocket = Socket & { data: { user?: AuthUser } };
 
@@ -18,11 +21,11 @@ type AuthedSocket = Socket & { data: { user?: AuthUser } };
  * socket.io endpoint at /api/chat/socket.io (under the Ingress path for this service).
  * Clients connect with `auth: { token }` (a Keycloak access token).
  *
- * TODO: with more than one replica, add @socket.io/redis-adapter (REDIS_URL)
- * so a message reaches users connected to other pods.
+ * With REDIS_URL set, rooms are shared across replicas through the Redis adapter.
+ * Clients should use the websocket transport only, so no sticky sessions are needed.
  */
 @WebSocketGateway({ path: '/api/chat/socket.io' })
-export class ChatGateway implements OnGatewayConnection {
+export class ChatGateway implements OnGatewayInit, OnGatewayConnection {
   private readonly logger = new Logger(ChatGateway.name);
 
   @WebSocketServer()
@@ -31,7 +34,15 @@ export class ChatGateway implements OnGatewayConnection {
   constructor(
     private readonly verifier: TokenVerifier,
     private readonly store: ChatStore,
+    private readonly redis: RedisPubSub,
   ) {}
+
+  afterInit(server: Server) {
+    if (this.redis.clients) {
+      server.adapter(createAdapter(this.redis.clients.pub, this.redis.clients.sub));
+      this.logger.log('socket.io Redis adapter enabled');
+    }
+  }
 
   async handleConnection(client: AuthedSocket) {
     const token = client.handshake.auth?.token as string | undefined;
@@ -48,14 +59,14 @@ export class ChatGateway implements OnGatewayConnection {
   async join(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: { room?: string }) {
     const room = this.validRoom(body?.room);
     await client.join(room);
-    return { room, history: this.store.recent(room) };
+    return { room, history: await this.store.recent(room) };
   }
 
   @SubscribeMessage('message')
-  message(
+  async message(
     @ConnectedSocket() client: AuthedSocket,
     @MessageBody() body: { room?: string; text?: string },
-  ): ChatMessage {
+  ): Promise<ChatMessage> {
     const room = this.validRoom(body?.room);
     const user = client.data.user;
     if (!user) throw new WsException('unauthenticated');
@@ -64,7 +75,7 @@ export class ChatGateway implements OnGatewayConnection {
     const text = (body?.text ?? '').trim().slice(0, 4000);
     if (!text) throw new WsException('empty message');
 
-    const msg = this.store.add({ room, text, from: user.username, fromSub: user.sub });
+    const msg = await this.store.add({ room, text, from: user.username, fromSub: user.sub });
     this.server.to(room).emit('message', msg);
     return msg;
   }

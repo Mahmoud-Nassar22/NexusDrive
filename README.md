@@ -10,15 +10,16 @@ A private cloud platform for file storage and collaboration (files, diagrams, ch
 
 ## Application architecture
 
-| Component               | Tech                      | Responsibility                                              |
-| ----------------------- | ------------------------- | ----------------------------------------------------------- |
-| `apps/web`              | React + Vite (TypeScript) | Web UI: files, diagrams, chat, meetings                     |
-| `services/file-service` | NestJS                    | Per-user files on S3 through presigned upload/download URLs |
-| `services/chat-service` | NestJS + socket.io        | Realtime chat rooms and LiveKit meeting tokens              |
-| Keycloak                | upstream                  | Login, SSO, MFA, users and roles (OIDC)                     |
-| draw.io                 | upstream                  | Embedded diagram editor; diagrams saved to S3               |
-| LiveKit                 | upstream                  | WebRTC video/audio meetings                                 |
-| PostgreSQL · Redis · S3 | managed on AWS            | Data, cache / pub-sub, file storage                         |
+| Component               | Tech                      | Responsibility                                                             |
+| ----------------------- | ------------------------- | -------------------------------------------------------------------------- |
+| `apps/web`              | React + Vite (TypeScript) | Web UI: files, diagrams, chat, meetings                                    |
+| `services/file-service` | NestJS                    | Per-user files on S3 through presigned upload/download URLs                |
+| `services/chat-service` | NestJS + socket.io        | Realtime chat (history in Postgres, Redis fan-out), LiveKit meeting tokens |
+| `services/user-service` | NestJS                    | Admin user management over the Keycloak Admin API                          |
+| Keycloak                | upstream                  | Login, SSO, MFA, users and roles (OIDC)                                    |
+| draw.io                 | upstream                  | Embedded diagram editor; diagrams saved to S3                              |
+| LiveKit                 | upstream                  | WebRTC video/audio meetings                                                |
+| PostgreSQL · Redis · S3 | managed on AWS            | Data, cache / pub-sub, file storage                                        |
 
 - Every service validates **Keycloak JWTs** and exposes `/health`, `/ready` and `/metrics`. Logs are JSON, and all config comes from env vars. See [docs/service-contract.md](docs/service-contract.md).
 - File bytes go **browser ↔ S3 directly**. Services only sign the URLs.
@@ -30,7 +31,7 @@ More detail: [docs/architecture.md](docs/architecture.md).
 ```
 Users → DNS (Route53/Cloudflare) → AWS Load Balancer (TLS) → Ingress → EKS
   EKS namespaces
-    app         web · file-service · chat-service · drawio · livekit (UDP via NLB)
+    app         web · file-service · chat-service · user-service · drawio · livekit (UDP via NLB)
     identity    keycloak
     platform    argo-cd · cert-manager · external-dns · external-secrets · aws-lb-controller
     monitoring  prometheus · grafana · loki

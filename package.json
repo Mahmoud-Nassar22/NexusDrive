@@ -12,9 +12,10 @@
   },
   "scripts": {
     "build:common": "npm run build -w @nexusdrive/common",
-    "build": "npm run build:common && npm run build -w @nexusdrive/file-service -w @nexusdrive/chat-service -w @nexusdrive/web",
+    "build": "npm run build:common && npm run build -w @nexusdrive/file-service -w @nexusdrive/chat-service -w @nexusdrive/user-service -w @nexusdrive/web",
     "dev:files": "npm run dev -w @nexusdrive/file-service",
     "dev:chat": "npm run dev -w @nexusdrive/chat-service",
+    "dev:users": "npm run dev -w @nexusdrive/user-service",
     "dev:web": "npm run dev -w @nexusdrive/web",
     "test": "npm run build:common && npm test --workspaces --if-present",
     "lint": "eslint .",

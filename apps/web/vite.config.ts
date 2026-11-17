@@ -10,6 +10,7 @@ export default defineConfig({
     proxy: {
       '/api/files': 'http://localhost:3001',
       '/api/chat': { target: 'http://localhost:3002', ws: true },
+      '/api/users': 'http://localhost:3003',
     },
   },
 });

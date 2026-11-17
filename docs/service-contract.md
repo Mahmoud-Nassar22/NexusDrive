@@ -23,6 +23,7 @@ Every backend service in `services/` follows these rules. They let the DevOps tr
 | web (Vite dev server)     | 5173       | `/`                                       |
 | file-service              | 3001       | `/api/files`                              |
 | chat-service              | 3002       | `/api/chat` (incl. `/api/chat/socket.io`) |
+| user-service              | 3003       | `/api/users`                              |
 | Keycloak (upstream image) | 8080       | `/auth` or own host                       |
 | draw.io (upstream image)  | 8081       | `/drawio` or own host                     |
 | LiveKit (upstream image)  | 7880 + UDP | own host, NLB                             |

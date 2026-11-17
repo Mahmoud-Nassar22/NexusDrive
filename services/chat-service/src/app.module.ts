@@ -1,9 +1,18 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AuthModule, createLoggerModule, HealthModule, MetricsModule } from '@nexusdrive/common';
+import {
+  AuthModule,
+  createLoggerModule,
+  HealthModule,
+  MetricsModule,
+  ReadinessRegistry,
+} from '@nexusdrive/common';
+import { Pool } from 'pg';
 import { ChatController } from './chat/chat.controller';
 import { ChatGateway } from './chat/chat.gateway';
-import { ChatStore } from './chat/chat.store';
+import { ChatStore, MemoryChatStore } from './chat/chat.store';
+import { PostgresChatStore } from './chat/postgres-chat.store';
+import { RedisPubSub } from './chat/redis-pubsub';
 import { validateEnv, type Env } from './config/env';
 import { MeetingsController } from './meetings/meetings.controller';
 import { MeetingsService } from './meetings/meetings.service';
@@ -23,6 +32,27 @@ import { MeetingsService } from './meetings/meetings.service';
     MetricsModule,
   ],
   controllers: [ChatController, MeetingsController],
-  providers: [ChatStore, ChatGateway, MeetingsService],
+  providers: [
+    {
+      // Postgres when DATABASE_URL is set; in-memory history otherwise (local dev).
+      provide: ChatStore,
+      inject: [ConfigService, ReadinessRegistry],
+      useFactory: (config: ConfigService<Env, true>, readiness: ReadinessRegistry): ChatStore => {
+        const url = config.get('DATABASE_URL', { infer: true });
+        if (!url) {
+          new Logger('ChatStore').log('DATABASE_URL not set: chat history is kept in memory');
+          return new MemoryChatStore();
+        }
+        const store = new PostgresChatStore(
+          new Pool({ connectionString: url, max: 10, connectionTimeoutMillis: 3000 }),
+        );
+        readiness.register('postgres', () => store.ping());
+        return store;
+      },
+    },
+    RedisPubSub,
+    ChatGateway,
+    MeetingsService,
+  ],
 })
 export class AppModule {}

@@ -10,10 +10,10 @@ export class ChatController {
 
   /** GET /api/chat/rooms/:room/messages */
   @Get(':room/messages')
-  messages(@Param('room') room: string) {
+  async messages(@Param('room') room: string) {
     if (!ROOM_PATTERN.test(room)) {
       throw new BadRequestException('invalid room name');
     }
-    return { room, messages: this.store.recent(room) };
+    return { room, messages: await this.store.recent(room) };
   }
 }

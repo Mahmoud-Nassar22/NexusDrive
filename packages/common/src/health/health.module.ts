@@ -9,9 +9,21 @@ import {
 
 type Check = () => Promise<unknown>;
 
+/** A hung dependency must fail readiness quickly, not hang the probe. */
+const CHECK_TIMEOUT_MS = 3000;
+
+function withTimeout(check: Check, ms: number): Promise<unknown> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+  });
+  return Promise.race([check(), timeout]).finally(() => clearTimeout(timer));
+}
+
 /**
  * Services register dependency checks here (e.g. "s3", "postgres") in
- * onModuleInit. /ready runs all of them; /health never touches dependencies.
+ * onModuleInit. /ready runs all of them in parallel, each with a timeout;
+ * /health never touches dependencies.
  */
 @Injectable()
 export class ReadinessRegistry {
@@ -21,19 +33,20 @@ export class ReadinessRegistry {
     this.checks.set(name, check);
   }
 
-  async run(): Promise<{ ok: boolean; checks: Record<string, string> }> {
+  async run(
+    timeoutMs = CHECK_TIMEOUT_MS,
+  ): Promise<{ ok: boolean; checks: Record<string, string> }> {
+    const entries = [...this.checks];
+    const settled = await Promise.allSettled(
+      entries.map(([, check]) => withTimeout(check, timeoutMs)),
+    );
     const results: Record<string, string> = {};
-    let ok = true;
-    for (const [name, check] of this.checks) {
-      try {
-        await check();
-        results[name] = 'ok';
-      } catch (err) {
-        ok = false;
-        results[name] = err instanceof Error ? err.message : 'failed';
-      }
-    }
-    return { ok, checks: results };
+    settled.forEach((r, i) => {
+      const name = entries[i][0];
+      results[name] =
+        r.status === 'fulfilled' ? 'ok' : r.reason instanceof Error ? r.reason.message : 'failed';
+    });
+    return { ok: settled.every((r) => r.status === 'fulfilled'), checks: results };
   }
 }
 

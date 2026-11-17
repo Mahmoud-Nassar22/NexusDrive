@@ -1,6 +1,7 @@
 import { LiveKitRoom, VideoConference } from '@livekit/components-react';
 import '@livekit/components-styles';
 import { useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../api/client';
 
 interface JoinInfo {
@@ -11,7 +12,9 @@ interface JoinInfo {
 
 /** Gets a LiveKit token from chat-service, then connects to the LiveKit server directly. */
 export function MeetingPage() {
-  const [room, setRoom] = useState('team-standup');
+  // Chat links here with ?room=<chat room>, so a chat room and its meeting share a name.
+  const [params] = useSearchParams();
+  const [room, setRoom] = useState(params.get('room') ?? 'team-standup');
   const [join, setJoin] = useState<JoinInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
 
