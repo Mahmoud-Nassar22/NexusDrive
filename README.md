@@ -24,7 +24,7 @@ A private cloud platform for file storage and collaboration (files, diagrams, ch
 - Every service validates **Keycloak JWTs** and exposes `/health`, `/ready` and `/metrics`. Logs are JSON, and all config comes from env vars. See [docs/service-contract.md](docs/service-contract.md).
 - File bytes go **browser ↔ S3 directly**. Services only sign the URLs.
 
-More detail: [docs/architecture.md](docs/architecture.md). Deploying it: [docs/deployment-notes.md](docs/deployment-notes.md).
+More detail: [docs/architecture.md](docs/architecture.md). Deploying it: [docs/deployment-notes.md](docs/deployment-notes.md). Containerising it (Stage 1): [docs/stage-1-docker.md](docs/stage-1-docker.md).
 
 ## Deployment architecture
 
